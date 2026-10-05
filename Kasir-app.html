@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Web Kasir</title>
+<style>
+:root{--bg:#f5f6fa;--card:#fff;--tx:#1d2330;--mut:#6b7385;--pri:#2563eb;--prit:#fff;--bd:#e2e5ee;--ok:#16a34a;--bad:#dc2626;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1218;--card:#181c25;--tx:#e8eaf0;--mut:#8a92a6;--pri:#3b82f6;--bd:#2a3040}}
+:root[data-theme="dark"]{--bg:#0f1218;--card:#181c25;--tx:#e8eaf0;--mut:#8a92a6;--pri:#3b82f6;--bd:#2a3040}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{display:flex;gap:8px;align-items:center;padding:12px 16px;background:var(--card);border-bottom:1px solid var(--bd);flex-wrap:wrap}
+h1{font-size:18px;margin:0;flex:1}
+.tabs button{background:none;border:1px solid var(--bd);color:var(--tx);padding:6px 12px;border-radius:8px;cursor:pointer}
+.tabs button.on{background:var(--pri);color:var(--prit);border-color:var(--pri)}
+main{max-width:1100px;margin:0 auto;padding:12px}
+.pos{display:grid;grid-template-columns:1fr 340px;gap:12px}
+@media(max-width:800px){.pos{grid-template-columns:1fr}}
+.box{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px}
+input,select{width:100%;padding:9px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-top:10px}
+.p{background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:10px;cursor:pointer;text-align:left;color:var(--tx);font:inherit}
+.p:hover{border-color:var(--pri)}
+.p b{display:block}.p span{color:var(--mut);font-size:13px}
+.row{display:flex;align-items:center;gap:6px;padding:7px 0;border-bottom:1px dashed var(--bd)}
+.row .n{flex:1}
+.q button{width:26px;height:26px;border-radius:6px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);cursor:pointer}
+.tot{display:flex;justify-content:space-between;font-size:18px;font-weight:700;margin:10px 0}
+.btn{width:100%;padding:11px;border:0;border-radius:8px;background:var(--pri);color:var(--prit);font:inherit;font-weight:600;cursor:pointer}
+.btn.s{background:var(--bg);color:var(--tx);border:1px solid var(--bd);width:auto;padding:6px 10px;font-weight:400}
+.btn.d{color:var(--bad)}
+.kb{font-weight:700;color:var(--ok);margin:8px 0}
+.tbl{overflow-x:auto}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:8px;border-bottom:1px solid var(--bd);white-space:nowrap}
+.f{display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:8px;margin-bottom:10px}
+@media(max-width:600px){.f{grid-template-columns:1fr 1fr}}
+.hide{display:none}
+.mut{color:var(--mut)}
+@media print{body *{visibility:hidden}#struk,#struk *{visibility:visible}#struk{position:absolute;left:0;top:0;width:100%}}
+#struk{display:none;font-family:monospace;white-space:pre}
+</style>
+</head>
+<body>
+<header>
+<h1>🧾 Web Kasir</h1>
+<div class="tabs"><button id="t1" class="on" onclick="tab(1)">Kasir</button><button id="t2" onclick="tab(2)">Produk</button><button id="t3" onclick="tab(3)">Riwayat</button></div>
+</header>
+<main>
+<section id="v1" class="pos">
+<div class="box"><input id="cari" placeholder="Cari produk..." oninput="rProd()"><div class="grid" id="grid"></div></div>
+<div class="box"><b>Keranjang</b><div id="cart"></div>
+<div class="tot"><span>Total</span><span id="total">Rp0</span></div>
+<input id="bayar" type="number" inputmode="numeric" placeholder="Uang diterima" oninput="kemb()">
+<div class="kb" id="kb"></div>
+<button class="btn" onclick="checkout()">Bayar &amp; Cetak Struk</button>
+<button class="btn s" style="margin-top:8px" onclick="cart={};rCart()">Kosongkan</button></div>
+</section>
+<section id="v2" class="box hide">
+<div class="f"><input id="pn" placeholder="Nama produk"><input id="ph" type="number" placeholder="Harga"><input id="ps" type="number" placeholder="Stok"><button class="btn" onclick="addP()">Tambah</button></div>
+<div class="tbl"><table><thead><tr><th>Nama</th><th>Harga</th><th>Stok</th><th></th></tr></thead><tbody id="tp"></tbody></table></div>
+</section>
+<section id="v3" class="box hide">
+<div class="tot"><span>Total penjualan</span><span id="omzet"></span></div>
+<div class="tbl"><table><thead><tr><th>Waktu</th><th>Item</th><th>Total</th></tr></thead><tbody id="th"></tbody></table></div>
+<button class="btn s d" style="margin-top:10px" onclick="if(confirm('Hapus semua riwayat?')){hist=[];save();rHist()}">Hapus riwayat</button>
+</section>
+</main>
+<div id="struk"></div>
+<script>
+const rp=n=>'Rp'+Number(n||0).toLocaleString('id-ID');
+const $=id=>document.getElementById(id);
+let prods=[{id:1,n:'Kopi Hitam',h:8000,s:50},{id:2,n:'Es Teh',h:5000,s:50},{id:3,n:'Nasi Goreng',h:18000,s:30},{id:4,n:'Mie Instan',h:10000,s:40},{id:5,n:'Air Mineral',h:4000,s:100},{id:6,n:'Roti Bakar',h:12000,s:20}];
+let hist=[],cart={};
+try{const a=localStorage.getItem('kasir_p'),b=localStorage.getItem('kasir_h');if(a)prods=JSON.parse(a);if(b)hist=JSON.parse(b)}catch(e){}
+function save(){try{localStorage.setItem('kasir_p',JSON.stringify(prods));localStorage.setItem('kasir_h',JSON.stringify(hist))}catch(e){}}
+function tab(n){[1,2,3].forEach(i=>{$('v'+i).classList.toggle('hide',i!=n);$('t'+i).classList.toggle('on',i==n)});if(n==2)rTbl();if(n==3)rHist()}
+function rProd(){const q=$('cari').value.toLowerCase();$('grid').innerHTML=prods.filter(p=>p.n.toLowerCase().includes(q)).map(p=>`<button class="p" onclick="add(${p.id})"><b>${esc(p.n)}</b><span>${rp(p.h)} · stok ${p.s}</span></button>`).join('')||'<span class="mut">Belum ada produk</span>'}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function add(id){const p=prods.find(x=>x.id==id);if((cart[id]||0)>=p.s){alert('Stok habis');return}cart[id]=(cart[id]||0)+1;rCart()}
+function chg(id,d){const p=prods.find(x=>x.id==id);const q=(cart[id]||0)+d;if(q<=0)delete cart[id];else if(q<=p.s)cart[id]=q;rCart()}
+function sum(){return Object.entries(cart).reduce((t,[id,q])=>t+q*prods.find(x=>x.id==id).h,0)}
+function rCart(){const e=Object.entries(cart);$('cart').innerHTML=e.length?e.map(([id,q])=>{const p=prods.find(x=>x.id==id);return `<div class="row"><span class="n">${esc(p.n)}<br><small class="mut">${rp(p.h)}</small></span><span class="q"><button onclick="chg(${id},-1)">−</button> ${q} <button onclick="chg(${id},1)">+</button></span><b>${rp(p.h*q)}</b></div>`}).join(''):'<p class="mut">Keranjang kosong</p>';$('total').textContent=rp(sum());kemb()}
+function kemb(){const b=+$('bayar').value,t=sum();$('kb').textContent=b&&t?(b>=t?'Kembalian: '+rp(b-t):'Kurang: '+rp(t-b)):''}
+function checkout(){const t=sum();if(!t){alert('Keranjang kosong');return}const b=+$('bayar').value||t;if(b<t){alert('Uang kurang');return}
+const items=Object.entries(cart).map(([id,q])=>{const p=prods.find(x=>x.id==id);p.s-=q;return{n:p.n,h:p.h,q}});
+const tr={w:new Date().toISOString(),items,t,b};hist.unshift(tr);save();
+$('struk').textContent=['     WEB KASIR','  '+new Date(tr.w).toLocaleString('id-ID'),'--------------------------------',...items.map(i=>`${i.n}\n  ${i.q} x ${rp(i.h)} = ${rp(i.q*i.h)}`),'--------------------------------','TOTAL   '+rp(t),'BAYAR   '+rp(b),'KEMBALI '+rp(b-t),'','   Terima kasih!'].join('\n');
+cart={};$('bayar').value='';rProd();rCart();window.print()}
+function addP(){const n=$('pn').value.trim(),h=+$('ph').value,s=+$('ps').value;if(!n||!h){alert('Isi nama & harga');return}prods.push({id:Date.now(),n,h,s:s||0});$('pn').value=$('ph').value=$('ps').value='';save();rTbl();rProd()}
+function delP(id){if(confirm('Hapus produk?')){prods=prods.filter(p=>p.id!=id);delete cart[id];save();rTbl();rProd();rCart()}}
+function stok(id){const p=prods.find(x=>x.id==id),v=prompt('Stok baru untuk '+p.n,p.s);if(v!==null&&!isNaN(v)){p.s=+v;save();rTbl();rProd()}}
+function rTbl(){$('tp').innerHTML=prods.map(p=>`<tr><td>${esc(p.n)}</td><td>${rp(p.h)}</td><td>${p.s}</td><td><button class="btn s" onclick="stok(${p.id})">Stok</button> <button class="btn s d" onclick="delP(${p.id})">Hapus</button></td></tr>`).join('')}
+function rHist(){$('omzet').textContent=rp(hist.reduce((t,h)=>t+h.t,0));$('th').innerHTML=hist.map(h=>`<tr><td>${new Date(h.w).toLocaleString('id-ID')}</td><td>${h.items.map(i=>esc(i.n)+' x'+i.q).join(', ')}</td><td>${rp(h.t)}</td></tr>`).join('')||'<tr><td colspan="3" class="mut">Belum ada transaksi</td></tr>'}
+rProd();rCart();
+</script>
+</body>
+</html>
