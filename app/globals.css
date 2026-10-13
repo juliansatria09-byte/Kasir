@@ -79,6 +79,7 @@ input::placeholder{color:#a4afaa}
 .table-card{padding:19px;margin-top:16px}.table-card .section-heading{margin-bottom:13px}.table-card .section-heading>button{font-size:11px}
 .table-scroll{width:100%;overflow:auto}table{width:100%;border-collapse:collapse;white-space:nowrap}th,td{text-align:left;padding:11px 10px;border-bottom:1px solid #eef1ef;font-size:11px}th{font-size:10px;color:#8b9992;font-weight:600}td{color:#53655d}td.r,th.r{text-align:right}td button{font-size:10px;padding:6px 9px}
 .status-pill{padding:4px 8px;border-radius:20px;background:#f0f4f2;color:#65766e;font-size:10px}
+.account-current{display:inline-block;margin-left:8px;background:#eaf5ef;color:var(--pri)}
 .table-product{display:flex;align-items:center;gap:9px}.table-product img{width:38px;height:38px;border-radius:7px;object-fit:cover}.table-product b{color:var(--ink)}
 .product-form-card{margin:0 0 16px}.product-form-card h2,.finance-form h2{font-family:Manrope,sans-serif;font-size:16px;margin:0 0 14px}
 .form{display:grid;grid-template-columns:repeat(4,minmax(120px,1fr));gap:9px}.form input{font-size:11px}.form .image-url-input{grid-column:span 3}.form-buttons{display:flex;gap:7px}.form-buttons button{font-size:11px}

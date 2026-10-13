@@ -20,6 +20,8 @@ const LEGACY_SEED_IMAGE_IDS = {
   6: "photo-1525351484163-7529414344d8",
   7: "photo-1573080496219-bb080dd4f877",
 };
+const CASHIER_TABS = [["kasir", "Kasir", "▦"], ["riwayat", "Riwayat", "◷"]];
+const ADMIN_TABS = [["akun", "Informasi akun", "♙"], ["riwayat", "Riwayat", "◷"], ["produk", "Produk", "▧"], ["keuangan", "Catatan dana", "↕"]];
 
 async function api(path, { method = "GET", body } = {}) {
   const response = await fetch(path, {
@@ -220,6 +222,39 @@ function Riwayat({ sales, onOpen }) {
         {!sales.length ? <div className="empty">Belum ada transaksi.</div> : (
           <div className="table-scroll"><table><thead><tr><th>ID</th><th>Waktu</th><th>Metode</th><th className="r">Total</th><th></th></tr></thead><tbody>{sales.map((sale) => (
             <tr key={sale.id}><td><b>{sale.id}</b></td><td>{new Date(sale.date).toLocaleString("id-ID")}</td><td><span className="status-pill">{sale.method}</span></td><td className="r">{rp(sale.total)}</td><td className="r"><button onClick={() => onOpen(sale)}>Lihat struk</button></td></tr>
+          ))}</tbody></table></div>
+        )}
+      </div>
+    </>
+  );
+}
+
+function InformasiAkun({ accounts, user }) {
+  const formatDate = (date) => date ? new Date(date).toLocaleString("id-ID", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }) : "Belum pernah login";
+  const admins = accounts.filter((account) => account.role === "admin").length;
+  const cashiers = accounts.filter((account) => account.role === "cashier").length;
+
+  return (
+    <>
+      <div className="welcome-row"><div><p className="eyebrow">AKSES TOKO</p><h2>Informasi akun</h2><p>Periksa akun yang terdaftar, waktu pembuatan, dan login terakhir.</p></div></div>
+      <div className="stats">
+        <Stat icon="♙" label="Total akun" value={accounts.length} />
+        <Stat icon="◆" label="Administrator" value={admins} tone="purple" />
+        <Stat icon="▦" label="Akun kasir" value={cashiers} tone="blue" />
+      </div>
+      <div className="card table-card">
+        <div className="section-heading"><div><h2>Akun terdaftar</h2><p>Informasi login hanya mencatat waktu terakhir berhasil masuk.</p></div><span className="product-count">{accounts.length} akun</span></div>
+        {!accounts.length ? <div className="empty">Belum ada akun terdaftar.</div> : (
+          <div className="table-scroll"><table><thead><tr><th>Nama pengguna</th><th>Peran</th><th>Dibuat</th><th>Login terakhir</th></tr></thead><tbody>{accounts.map((account) => (
+            <tr key={account.id}>
+              <td><b>{account.username}</b>{account.id === user.id && <span className="status-pill account-current">Sedang login</span>}</td>
+              <td><span className="status-pill">{account.role === "admin" ? "Administrator" : "Kasir"}</span></td>
+              <td>{formatDate(account.created_at)}</td>
+              <td>{formatDate(account.last_login_at)}</td>
+            </tr>
           ))}</tbody></table></div>
         )}
       </div>
@@ -458,6 +493,7 @@ export default function Page() {
   const [products, setProducts] = useState([]);
   const [sales, setSales] = useState([]);
   const [funds, setFunds] = useState([]);
+  const [accounts, setAccounts] = useState([]);
   const [receipt, setReceipt] = useState(null);
   const [authReady, setAuthReady] = useState(false);
   const [user, setUser] = useState(null);
@@ -496,15 +532,17 @@ export default function Page() {
       setDataLoading(true);
       setServiceError("");
       try {
-        const [productResult, salesResult, fundResult] = await Promise.all([
+        const [productResult, salesResult, fundResult, accountResult] = await Promise.all([
           api("/api/products"),
           api("/api/sales"),
           user.role === "admin" ? api("/api/funds") : Promise.resolve({ funds: [] }),
+          user.role === "admin" ? api("/api/accounts") : Promise.resolve({ accounts: [] }),
         ]);
         if (!active) return;
         setProducts(productResult.products);
         setSales(salesResult.sales);
         setFunds(fundResult.funds);
+        setAccounts(accountResult.accounts);
       } catch (error) {
         if (active) {
           setServiceError(error.message);
@@ -519,7 +557,7 @@ export default function Page() {
   }, [user]);
   const login = (loggedInUser) => {
     setUser(loggedInUser);
-    setTab("kasir");
+    setTab(loggedInUser.role === "admin" ? "akun" : "kasir");
     setServiceError("");
   };
   const logout = async () => {
@@ -529,16 +567,16 @@ export default function Page() {
       setProducts([]);
       setSales([]);
       setFunds([]);
+      setAccounts([]);
       setTab("kasir");
       setServiceError("");
     } catch (error) {
       setServiceError(error.message);
     }
   };
-  const allTabs = [["kasir", "Kasir", "▦"], ["riwayat", "Riwayat", "◷"], ["produk", "Produk", "▧"], ["keuangan", "Catatan dana", "↕"]];
-  const tabs = useMemo(() => user?.role === "admin" ? allTabs : allTabs.slice(0, 2), [user?.role]);
+  const tabs = useMemo(() => user?.role === "admin" ? ADMIN_TABS : CASHIER_TABS, [user?.role]);
   useEffect(() => {
-    if (user?.role === "cashier" && !tabs.some(([key]) => key === tab)) setTab("kasir");
+    if (user && !tabs.some(([key]) => key === tab)) setTab(user.role === "admin" ? "akun" : "kasir");
   }, [user, tab, tabs]);
   if (!authReady) return <main className="loading-screen"><span className="brand-mark">W</span></main>;
   if (!user) return <Login onLogin={login} setupAvailable={setupAvailable} serviceError={serviceError} />;
@@ -556,6 +594,7 @@ export default function Page() {
           {serviceError && <div className="page-error" role="alert">{serviceError} <button onClick={() => window.location.reload()}>Coba lagi</button></div>}
           {dataLoading ? <div className="loading-card"><span className="brand-mark">W</span><span>Memuat data toko...</span></div> : !serviceError && <div key={tab} className="tab-transition">
               {tab === "kasir" && <Kasir products={products} setProducts={setProducts} sales={sales} setSales={setSales} onDone={setReceipt} funds={funds} />}
+              {tab === "akun" && user.role === "admin" && <InformasiAkun accounts={accounts} user={user} />}
               {tab === "riwayat" && <Riwayat sales={sales} onOpen={setReceipt} />}
               {tab === "produk" && user.role === "admin" && <Produk products={products} setProducts={setProducts} />}
               {tab === "keuangan" && user.role === "admin" && <Keuangan funds={funds} setFunds={setFunds} />}

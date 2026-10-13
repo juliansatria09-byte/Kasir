@@ -22,6 +22,7 @@ export async function POST(request) {
     const user = result.rows[0];
     const valid = user ? await bcrypt.compare(password, user.password_hash) : false;
     if (!valid) return jsonError("Nama pengguna atau kata sandi belum benar.", 401);
+    await db.query("UPDATE users SET last_login_at = NOW(3) WHERE id = $1", [user.id]);
     const response = NextResponse.json({ user: { id: user.id, username: user.username, role: user.role } });
     await createSession(db, user, response);
     return response;
