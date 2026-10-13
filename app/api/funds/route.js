@@ -9,7 +9,7 @@ export async function GET(request) {
   if (access.response) return access.response;
   try {
     const db = await ensureDatabase();
-    const result = await db.query("SELECT id, type, note, amount, date::text AS date FROM fund_entries ORDER BY date DESC, id DESC");
+    const result = await db.query("SELECT id, type, note, amount, DATE_FORMAT(date, '%Y-%m-%d') AS date FROM fund_entries ORDER BY date DESC, id DESC");
     return NextResponse.json({ funds: result.rows.map((row) => ({ ...row, id: Number(row.id), amount: Number(row.amount) })) });
   } catch (error) {
     console.error("Gagal memuat catatan dana.", error);
@@ -34,10 +34,14 @@ export async function POST(request) {
     }
     const db = await ensureDatabase();
     const result = await db.query(
-      "INSERT INTO fund_entries (type, note, amount, date, created_by) VALUES ($1, $2, $3, $4, $5) RETURNING id, type, note, amount, date::text AS date",
+      "INSERT INTO fund_entries (type, note, amount, date, created_by) VALUES ($1, $2, $3, $4, $5)",
       [type, note, amount, date, access.user.id]
     );
-    const row = result.rows[0];
+    const inserted = await db.query(
+      "SELECT id, type, note, amount, DATE_FORMAT(date, '%Y-%m-%d') AS date FROM fund_entries WHERE id=$1",
+      [result.insertId]
+    );
+    const row = inserted.rows[0];
     return NextResponse.json({ fund: { ...row, id: Number(row.id), amount: Number(row.amount) } }, { status: 201 });
   } catch (error) {
     console.error("Gagal menyimpan catatan dana.", error);
@@ -52,7 +56,7 @@ export async function DELETE(request) {
   if (!/^\d+$/.test(id) || Number(id) < 1) return jsonError("ID catatan tidak valid.", 400);
   try {
     const db = await ensureDatabase();
-    const result = await db.query("DELETE FROM fund_entries WHERE id=$1 RETURNING id", [id]);
+    const result = await db.query("DELETE FROM fund_entries WHERE id=$1", [id]);
     if (!result.rowCount) return jsonError("Catatan dana tidak ditemukan.", 404);
     return NextResponse.json({ ok: true });
   } catch (error) {

@@ -5,23 +5,26 @@
     npm install
     npm run dev
 
-## Konfigurasi PostgreSQL
+## Konfigurasi MySQL
 
-Atur `DATABASE_URL` ke PostgreSQL. Aplikasi membuat tabel yang diperlukan dan mengisi menu awal secara otomatis ketika pertama kali dibuka. Akun dan data produk, transaksi, serta dana disimpan bersama di database.
+Atur `DATABASE_URL` ke connection URL MySQL berformat `mysql://USER:PASSWORD@HOST:3306/DATABASE`. Aplikasi membuat tabel yang dibutuhkan secara otomatis dan mengisi menu awal jika tabel produk masih kosong.
 
-Contoh file `.env.local` untuk pengembangan:
+Contoh `.env.local` untuk pengembangan:
 
-    DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DATABASE
+    DATABASE_URL=mysql://USER:PASSWORD@HOST:3306/DATABASE
+    DATABASE_SSL=disable
     ADMIN_SETUP_TOKEN=ganti-dengan-token-acak-panjang
 
-Jangan commit `.env.local` atau membagikan token rahasia.
+Jangan commit `.env.local` atau membagikan token rahasia. Untuk koneksi database jarak jauh, aktifkan TLS dengan tidak mengatur `DATABASE_SSL=disable`.
 
 ## Membuat admin pertama
 
-Atur `ADMIN_SETUP_TOKEN` sebagai environment variable di Railway, lalu buka halaman login dan pilih **Siapkan akun admin**. Masukkan token tersebut, nama pengguna admin, serta kata sandi minimal 12 karakter. Endpoint penyiapan mengizinkan pembuatan satu admin saja dan otomatis tertutup setelah admin pertama dibuat. Hapus `ADMIN_SETUP_TOKEN` dari environment setelah setup selesai.
+Atur `ADMIN_SETUP_TOKEN` sebagai environment variable di Railway, lalu buka halaman login dan pilih **Siapkan akun admin**. Masukkan token, nama pengguna admin, serta kata sandi minimal 12 karakter. Endpoint hanya mengizinkan pembuatan satu admin. Hapus `ADMIN_SETUP_TOKEN` dari environment setelah setup selesai.
 
 Pendaftaran publik hanya membuat akun kasir. Kasir dapat melakukan transaksi dan melihat transaksinya sendiri. Hanya admin yang dapat menambah, mengubah, serta menghapus produk dan mengakses catatan dana. Hak akses diterapkan pada API server; cookie sesi bersifat HttpOnly dan kata sandi di-hash sebelum disimpan.
 
 ## Deployment
 
-Deployment Railway memerlukan `DATABASE_URL` PostgreSQL dan `ADMIN_SETUP_TOKEN` di environment service aplikasi. Untuk menjalankan deployment Vercel dengan autentikasi dan data yang sama, atur environment variable yang sama melalui dashboard Vercel tanpa menaruh nilainya di Git. Setelah mengatur environment variable, deploy ulang aplikasi.
+Railway harus memiliki service MySQL dan service aplikasi harus menggunakan `DATABASE_URL` yang merujuk ke URL MySQL tersebut, serta `ADMIN_SETUP_TOKEN` untuk membuat admin pertama. Setelah mengganti database, tabel akan dibuat otomatis; data yang tersimpan di service PostgreSQL lama tidak disalin. Pertahankan service PostgreSQL sampai yakin tidak ada data yang perlu dipindahkan.
+
+Untuk menjalankan versi yang sama di Vercel, atur `DATABASE_URL` MySQL yang dapat diakses dari Vercel melalui dashboard dan deploy ulang. Jangan menyimpan nilai koneksi atau token di Git.

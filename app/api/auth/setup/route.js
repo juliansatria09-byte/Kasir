@@ -33,31 +33,30 @@ export async function POST(request) {
     const db = await ensureDatabase();
     const hash = await bcrypt.hash(password, 12);
     const client = await db.connect();
+    let lockAcquired = false;
     try {
-      await client.query("BEGIN");
-      await client.query("LOCK TABLE users IN EXCLUSIVE MODE");
+      const lock = await client.query("SELECT GET_LOCK('kasir_admin_setup', 10) AS acquired");
+      lockAcquired = Number(lock.rows[0].acquired) === 1;
+      if (!lockAcquired) return jsonError("Penyiapan admin sedang sibuk. Coba lagi sebentar.", 503);
+      await client.query("START TRANSACTION");
       const admins = await client.query("SELECT 1 FROM users WHERE role = 'admin' LIMIT 1");
       if (admins.rowCount) {
         await client.query("ROLLBACK");
         return jsonError("Admin pertama sudah dibuat; penyiapan ini sudah dinonaktifkan.", 409);
       }
-      const result = await client.query(
+      await client.query(
         `INSERT INTO users (username, normalized_username, password_hash, role)
-         VALUES ($1, $2, $3, 'admin')
-         ON CONFLICT (normalized_username) DO NOTHING
-         RETURNING id`,
+         VALUES ($1, $2, $3, 'admin')`,
         [username, username.toLowerCase(), hash]
       );
-      if (!result.rowCount) {
-        await client.query("ROLLBACK");
-        return jsonError("Nama pengguna sudah digunakan.", 409);
-      }
       await client.query("COMMIT");
       return NextResponse.json({ message: "Admin pertama berhasil dibuat. Penyiapan admin telah ditutup." }, { status: 201 });
     } catch (error) {
       await client.query("ROLLBACK");
+      if (error.code === "ER_DUP_ENTRY") return jsonError("Nama pengguna sudah digunakan.", 409);
       throw error;
     } finally {
+      if (lockAcquired) await client.query("SELECT RELEASE_LOCK('kasir_admin_setup')");
       client.release();
     }
   } catch (error) {

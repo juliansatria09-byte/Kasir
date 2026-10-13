@@ -19,16 +19,14 @@ export async function POST(request) {
     }
     const db = await ensureDatabase();
     const hash = await bcrypt.hash(password, 12);
-    const result = await db.query(
+    await db.query(
       `INSERT INTO users (username, normalized_username, password_hash, role)
-       VALUES ($1, $2, $3, 'cashier')
-       ON CONFLICT (normalized_username) DO NOTHING
-       RETURNING id`,
+       VALUES ($1, $2, $3, 'cashier')`,
       [username, username.toLowerCase(), hash]
     );
-    if (!result.rowCount) return jsonError("Nama pengguna sudah digunakan.", 409);
     return NextResponse.json({ message: "Pendaftaran berhasil. Silakan masuk." }, { status: 201 });
   } catch (error) {
+    if (error.code === "ER_DUP_ENTRY") return jsonError("Nama pengguna sudah digunakan.", 409);
     console.error("Gagal mendaftarkan akun kasir.", error);
     return jsonError("Pendaftaran gagal karena layanan sedang tidak tersedia.", 503);
   }

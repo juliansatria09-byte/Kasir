@@ -33,14 +33,18 @@ export async function PATCH(request, { params }) {
     const db = await ensureDatabase();
     const result = await db.query(
       `UPDATE products SET name=$1, category=$2, price=$3, stock=$4, image=$5
-       WHERE id=$6 RETURNING id, name, category, price, stock, image`,
+       WHERE id=$6`,
       [input.name, input.category, input.price, input.stock, input.image, id]
     );
-    if (!result.rowCount) return jsonError("Produk tidak ditemukan.", 404);
-    const row = result.rows[0];
+    const updated = await db.query(
+      "SELECT id, name, category, price, stock, image FROM products WHERE id=$1",
+      [id]
+    );
+    if (!updated.rowCount) return jsonError("Produk tidak ditemukan.", 404);
+    const row = updated.rows[0];
     return NextResponse.json({ product: { ...row, id: Number(row.id), price: Number(row.price), stock: Number(row.stock) } });
   } catch (error) {
-    if (error.code === "23505") return jsonError("Nama produk sudah digunakan.", 409);
+    if (error.code === "ER_DUP_ENTRY") return jsonError("Nama produk sudah digunakan.", 409);
     console.error("Gagal mengubah produk.", error);
     return jsonError("Produk tidak dapat diperbarui saat ini.", 503);
   }
@@ -53,7 +57,7 @@ export async function DELETE(request, { params }) {
   if (!validId(id)) return jsonError("ID produk tidak valid.", 400);
   try {
     const db = await ensureDatabase();
-    const result = await db.query("DELETE FROM products WHERE id=$1 RETURNING id", [id]);
+    const result = await db.query("DELETE FROM products WHERE id=$1", [id]);
     if (!result.rowCount) return jsonError("Produk tidak ditemukan.", 404);
     return NextResponse.json({ ok: true });
   } catch (error) {

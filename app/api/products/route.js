@@ -41,14 +41,17 @@ export async function POST(request) {
     const db = await ensureDatabase();
     const result = await db.query(
       `INSERT INTO products (name, category, price, stock, image)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING id, name, category, price, stock, image`,
+       VALUES ($1, $2, $3, $4, $5)`,
       [input.name, input.category, input.price, input.stock, input.image]
     );
-    const row = result.rows[0];
+    const inserted = await db.query(
+      "SELECT id, name, category, price, stock, image FROM products WHERE id=$1",
+      [result.insertId]
+    );
+    const row = inserted.rows[0];
     return NextResponse.json({ product: { ...row, id: Number(row.id), price: Number(row.price), stock: Number(row.stock) } }, { status: 201 });
   } catch (error) {
-    if (error.code === "23505") return jsonError("Nama produk sudah digunakan.", 409);
+    if (error.code === "ER_DUP_ENTRY") return jsonError("Nama produk sudah digunakan.", 409);
     console.error("Gagal menambahkan produk.", error);
     return jsonError("Produk tidak dapat disimpan saat ini.", 503);
   }

@@ -11,13 +11,14 @@ export async function GET(request) {
   try {
     const db = await ensureDatabase();
     const salesResult = access.user.role === "admin"
-      ? await db.query("SELECT id, date, method, subtotal, discount, tax, total, paid, change FROM sales ORDER BY date DESC")
-      : await db.query("SELECT id, date, method, subtotal, discount, tax, total, paid, change FROM sales WHERE cashier_id=$1 ORDER BY date DESC", [access.user.id]);
+      ? await db.query("SELECT id, date, method, subtotal, discount, tax, total, paid, `change` AS `change` FROM sales ORDER BY date DESC")
+      : await db.query("SELECT id, date, method, subtotal, discount, tax, total, paid, `change` AS `change` FROM sales WHERE cashier_id=$1 ORDER BY date DESC", [access.user.id]);
     if (!salesResult.rowCount) return NextResponse.json({ sales: [] });
     const ids = salesResult.rows.map((sale) => sale.id);
+    const saleIdParams = ids.map((_, index) => `$${index + 1}`).join(", ");
     const itemResult = await db.query(
-      "SELECT sale_id, product_id, name, price, qty FROM sale_items WHERE sale_id = ANY($1::text[]) ORDER BY id",
-      [ids]
+      `SELECT sale_id, product_id, name, price, qty FROM sale_items WHERE sale_id IN (${saleIdParams}) ORDER BY id`,
+      ids
     );
     const itemsBySale = new Map();
     for (const row of itemResult.rows) {
@@ -62,8 +63,8 @@ export async function POST(request) {
     client = await db.connect();
     await client.query("BEGIN");
     const productResult = await client.query(
-      "SELECT id, name, price, stock FROM products WHERE id = ANY($1::bigint[]) ORDER BY id FOR UPDATE",
-      [[...quantities.keys()]]
+      `SELECT id, name, price, stock FROM products WHERE id IN (${[...quantities.keys()].map((_, index) => `$${index + 1}`).join(", ")}) ORDER BY id FOR UPDATE`,
+      [...quantities.keys()]
     );
     if (productResult.rowCount !== quantities.size) {
       await client.query("ROLLBACK");
@@ -98,9 +99,9 @@ export async function POST(request) {
       subtotal, discount, tax, total, method, paid, change: paid - total,
     };
     await client.query(
-      `INSERT INTO sales (id, cashier_id, date, method, subtotal, discount, tax, total, paid, change)
+      `INSERT INTO sales (id, cashier_id, date, method, subtotal, discount, tax, total, paid, \`change\`)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-      [sale.id, access.user.id, sale.date, method, subtotal, discount, tax, total, paid, sale.change]
+      [sale.id, access.user.id, new Date(sale.date), method, subtotal, discount, tax, total, paid, sale.change]
     );
     for (const item of items) {
       await client.query(
